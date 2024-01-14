@@ -1,0 +1,59 @@
+.body {
+    background-color: #0f111b;
+    color: #82809b;
+    font-family: "Lucida Console", Monaco, monospace;
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+}
+
+.leaseContainer {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    text-align: center;
+    flex-direction: row;
+}
+
+.lease {
+    display: flex;
+    flex: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    flex-direction: column;
+    border-radius: 10px; 
+    border: 2px solid #ccc;
+    margin: 15px;
+    background-color: #1f2549;
+    color: #82809b;
+}
+
+
+.ip {
+    flex: 0 0 auto; 
+    margin: 5px;
+}
+
+.mac {
+    flex: 0 0 auto;
+    margin: 5px;
+}
+
+.hostname {
+    flex: 0 0 auto;
+    margin: 5px;
+}
+
+.leftCol {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: top;
+    flex-direction: column;
+    margin: 5px;
+}
+
+.portButton {
+    flex: 0 0 auto;
+    margin: 5px;
+}

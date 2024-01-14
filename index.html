@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link type="text/css" rel="stylesheet" href="style.css">
+    <title>DHCP Leases</title>    
+</head>
+<body class="body">
+    <header>
+        <!-- Header content goes here -->
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-1 leftCol">                
+                <input type="text" class="form-control" id="search" placeholder="Search">
+                
+                <!-- checkboxes for common http ports -->
+                <div class="form-check form-switch">
+                    <input class="form-check-input portCheckBox" type="checkbox" id="port80">
+                    <label class="form-check-label" for="port80">80</label>
+                </div>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input portCheckBox" type="checkbox" id="port443">
+                    <label class="form-check-label" for="port443">443</label>
+                </div>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input portCheckBox" type="checkbox" id="port8080">
+                    <label class="form-check-label" for="port8080">8080</label>
+                </div>      
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input portCheckBox" type="checkbox" id="port8000">
+                    <label class="form-check-label" for="port8000">8000</label>
+                </div>
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input portCheckBox" type="checkbox" id="port8081">
+                    <label class="form-check-label" for="port8081">8081</label>
+                </div>
+                
+            </div>
+            <div class="col-md-10">
+                <div id="leases" class="leaseContainer"></div>
+            </div>
+            <div class="col-md-1 rightCol">
+                <!-- Right column content goes here -->
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <!-- Footer content goes here -->
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    
+    <script>
+        // Wait for document to load
+        $(document).ready(function() {            
+            $("#search").val("");
+            $(".portCheckBox").prop("checked", false);           
+
+            const portsToCheck = [];
+            // Get the DHCP leases from /leases at the root of the web server
+            console.log($("#leases"));
+            $.getJSON("/leases", function(data) {
+                // Create a div with the class of "lease" for each lease
+                $.each(data, function(key, val) {
+                    var lease = $("<div class='lease'></div>");                    
+                    // Add the IP address to the lease div
+                    lease.append("<div class='ip'>" + val.ip + "</div>");
+                    // Add the MAC address to the lease div
+                    lease.append("<div class='mac'>" + val.mac + "</div>");
+                    if(val.hostname){
+                        lease.append("<div class='hostname'>" + val.hostname + "</div>");
+                    }
+                    $("#leases").append(lease);
+                });
+            });
+
+            // Get lease data every 5 seconds and add any new leases to the leases div
+            setInterval(function() {
+                $.getJSON("/leases", function(data) {
+                    $.each(data, function(key, val) {
+                        var lease = $("<div class='lease'></div>");
+                        lease.append("<div class='ip'>" + val.ip + "</div>");
+                        lease.append("<div class='mac'>" + val.mac + "</div>");
+                        if(val.hostname){
+                            lease.append("<div class='hostname'>" + val.hostname + "</div>");
+                        }
+                        // If the lease doesn't already exist in the leases div, add it
+                        if(!$("#leases").find(".ip:contains('" + val.ip + "')").length){
+                            $("#leases").append(lease);
+                        }
+                    });
+                });
+            }, 5000);
+            
+
+            // On mouseover of a lease, store existing css then make larger, change background color and text color, then on mouseout, restore original css
+            $(document).on("mouseover", ".lease", function() {
+                var originalCss = $(this).css(["font-size", "background-color", "color"]);
+                $(this).css({"background-color": "#000000", "color": "#ffffff"});
+                $(this).on("mouseout", function() {
+                    $(this).css(originalCss);
+                });
+            }); 
+
+            // As the user types in the search box, filter the leases div to only show leases that match the search
+            $("#search").on("keyup", function() {
+                var value = $(this).val().toLowerCase();
+                $("#leases .lease").filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            });
+
+            // On click of a lease iterate through the portsToCheck array and check if the port is open using /check with the IP address and port number, if the port is open, add port as link to the lease div with the class of "openPort"
+            $(document).on("click", ".lease", function(event) {
+                // If clicking on a button, don't scan for open ports just open the link
+                if($(event.target).hasClass("portButton")){
+                    return;
+                } else if($(this).find(".openPort").length){
+                    return;
+                }
+                var ip = $(this).find(".ip").text().trim();
+                var lease = $(this);
+                $.each(portsToCheck, function(key, val) {
+                    console.log(`/check?ip=${ip}&port=${val}`);
+                    console.log(`#${ip.replace(/\./g, "")}-${val}`);
+                    $.getJSON("/check?ip=" + ip + "&port=" + val, function(data) {
+                        if(data.status == "open"){
+                            if(port = 443){
+                                lease.append("<div class='openPort'><a class='btn btn-primary portButton' href='https://" + ip + ":" + val + "' target='_blank'>" + val + "</a></div>");
+                            } else {
+                                lease.append("<div class='openPort'><a class='btn btn-primary portButton' href='http://" + ip + ":" + val + "' target='_blank'>" + val + "</a></div>");
+                            }
+                            
+                        }                        
+                    });
+                });
+            });
+
+            // On check of a port checkbox, add or remove the port from the portsToCheck array
+            $(document).on("change", ".portCheckBox", function() {
+                var port = $(this).attr("id").replace("port", "");
+                if($(this).is(":checked")){
+                    portsToCheck.push(port);
+                } else {
+                    portsToCheck.splice(portsToCheck.indexOf(port), 1);
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>
+    
