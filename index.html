@@ -133,7 +133,7 @@
                     console.log(`#${ip.replace(/\./g, "")}-${val}`);
                     $.getJSON("/check?ip=" + ip + "&port=" + val, function(data) {
                         if(data.status == "open"){
-                            if(port = 443){
+                            if(val == 443){
                                 lease.append("<div class='openPort'><a class='btn btn-primary portButton' href='https://" + ip + ":" + val + "' target='_blank'>" + val + "</a></div>");
                             } else {
                                 lease.append("<div class='openPort'><a class='btn btn-primary portButton' href='http://" + ip + ":" + val + "' target='_blank'>" + val + "</a></div>");
