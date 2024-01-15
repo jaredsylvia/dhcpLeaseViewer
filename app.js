@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const leaseFile = '/var/lib/dhcp/dhcpd.leases';
+const confFile = '/etc/dhcp/dhcpd.conf';
 const fs = require('fs');
 const net = require('net');
 const port = 3903;
@@ -38,6 +39,32 @@ function parseLeaseFile() {
     return parsedLeases;
 }
 
+// Function to read and parse the conf file into an array of objects for host declarations
+function parseConfFile() {
+    // Read the conf file
+    const confData = fs.readFileSync(confFile, 'utf8');
+    
+    // Split the conf file into an array of hosts
+    const hosts = confData.split('host');
+    
+    // Remove the first element of the array (it's just the file header)
+    hosts.shift();   
+    
+    // Create an empty array to store the parsed hosts
+    const parsedHosts = [];
+    // Loop through the array of hosts
+    hosts.forEach(host => {
+        const hostLines = host.split('\n');
+        const parsedHost = {};
+        parsedHost.hostname = hostLines.shift().trim().replace('{', '');
+        parsedHost.mac = hostLines.find(line => line.includes('hardware ethernet')).split(' ')[6].replace(';', '');
+        parsedHost.ip = hostLines.find(line => line.includes('fixed-address')).split(' ')[5].replace(';', '');
+        parsedHosts.push(parsedHost);        
+    });
+    
+    return parsedHosts;
+}
+
 // Define a route for index.html
 
 app.get('/', (req, res) => {
@@ -52,6 +79,8 @@ app.get('/style.css', (req, res) => {
 app.get('/leases', (req, res) => {
     // Get the parsed leases
     const leases = parseLeaseFile();
+    const hosts = parseConfFile();
+    
     // Remove duplicate IPs except the newest one
     const uniqueLeases = [];
     leases.forEach(lease => {
@@ -66,6 +95,20 @@ app.get('/leases', (req, res) => {
         }
         uniqueLeases.push(lease);
     });
+
+    hosts.forEach(host => {
+        if (uniqueLeases.find(uniqueLease => uniqueLease.ip == host.ip)) {
+            uniqueLeases.splice(uniqueLeases.findIndex(uniqueLease => uniqueLease.ip == host.ip), 1);
+        }        
+        if (uniqueLeases.find(uniqueLease => uniqueLease.mac == host.mac)) {
+            uniqueLeases.splice(uniqueLeases.findIndex(uniqueLease => uniqueLease.mac == host.mac), 1);
+        }        
+        if (uniqueLeases.find(uniqueLease => uniqueLease.hostname == host.name)) {
+            uniqueLeases.splice(uniqueLeases.findIndex(uniqueLease => uniqueLease.hostname == host.name), 1);
+        }
+        uniqueLeases.push(host);
+    });
+    
     // Send the leases as JSON
     res.json(uniqueLeases);    
 });
